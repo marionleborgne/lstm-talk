@@ -1,8 +1,8 @@
+import numpy as np
+
 from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.recurrent import LSTM
 from keras.models import Sequential
-
-import numpy as np
 
 
 def augment_data(X, y, duplication_ratio):
@@ -17,6 +17,7 @@ def augment_data(X, y, duplication_ratio):
     :return X, y: augmented data
     """
     nb_duplicates = duplication_ratio * len(X)
+    print('nb_duplicates:', nb_duplicates)
 
     X_hat = []
     y_hat = []
@@ -56,7 +57,7 @@ def create_model(sequence_length, layers):
 
 
 def create_train_and_test(data, sequence_length, split_index,
-                          duplication_ratio):
+                          duplication_ratio, normalize=True):
     """
 
     :param data: (array)
@@ -67,21 +68,25 @@ def create_train_and_test(data, sequence_length, split_index,
         Train / test split index.
     :param duplication_ratio: (float)
         Data duplication percentage for the data augmentation step.
-    :return X_train, y_train, X_test, y_test: (4-tuple of arrays)
-        Train and test sets.
+    :param normalize: (bool)
+        Whether to normalize the input data. Default is True.
+    :return X_train, y_train, X_test, y_test, y_true: (tuple of arrays)
+        Train set with targets, test set with targets, true values.
     """
-    nb_records = len(data)
-    print "Total number of records:", nb_records
+    y_true = data[split_index + sequence_length:]
 
-    print "Creating train data..."
+    nb_records = len(data)
+    print("Total number of records:", nb_records)
+
+    print("Creating train data...")
     result = []
     for index in range(split_index - sequence_length):
         result.append(data[index: index + sequence_length])
     result = np.array(result)  # shape = (samples, sequence_length)
-    result, result_mean = z_norm(result)
-
-    print "Mean of train data :", result_mean
-    print "Train data shape  :", result.shape
+    if normalize:
+        result, result_mean = z_norm(result)
+        print("Mean of train data :", result_mean)
+    print("Train data shape  :", result.shape)
 
     train = result[:split_index, :]
     np.random.shuffle(train)
@@ -89,15 +94,15 @@ def create_train_and_test(data, sequence_length, split_index,
     y_train = train[:, -1]
     X_train, y_train = augment_data(X_train, y_train, duplication_ratio)
 
-    print "Creating test data..."
+    print("Creating test data...")
     result = []
     for index in range(split_index, nb_records - sequence_length):
         result.append(data[index: index + sequence_length])
     result = np.array(result)  # shape = (samples, sequence_length)
-    result, result_mean = z_norm(result)
-
-    print "Mean of test data : ", result_mean
-    print "Test data shape  : ", result.shape
+    if normalize:
+        result, result_mean = z_norm(result)
+        print("Mean of test data : ", result_mean)
+    print("Test data shape  : ", result.shape)
 
     X_test = result[:, :-1]
     y_test = result[:, -1]
@@ -108,4 +113,4 @@ def create_train_and_test(data, sequence_length, split_index,
     X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
     X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
 
-    return X_train, y_train, X_test, y_test
+    return X_train, y_train, X_test, y_test, y_true
