@@ -70,11 +70,9 @@ def create_train_and_test(data, sequence_length, split_index,
         Data duplication percentage for the data augmentation step.
     :param normalize: (bool)
         Whether to normalize the input data. Default is True.
-    :return X_train, y_train, X_test, y_test, y_true: (tuple of arrays)
-        Train set with targets, test set with targets, true values.
+    :return X_train, y_train, X_test, y_test: (tuple of arrays)
+        Train set with targets and test set with targets.
     """
-    y_true = data[split_index + sequence_length:]
-
     nb_records = len(data)
     print("Total number of records:", nb_records)
 
@@ -113,4 +111,4 @@ def create_train_and_test(data, sequence_length, split_index,
     X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
     X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
 
-    return X_train, y_train, X_test, y_test, y_true
+    return X_train, y_train, X_test, y_test

@@ -35,7 +35,10 @@ input_csv = 'nyc_taxi.csv'  # Data sampled every 30m.
 df = pd.read_csv(os.path.join('data', input_csv))
 
 data = df.value.values.astype("float64")
-X_train, y_train, X_test, y_test, y_true = create_train_and_test(
+y_true = data[split_index + sequence_length:]
+timestamps = df.timestamp.values[split_index + sequence_length:]
+
+X_train, y_train, X_test, y_test = create_train_and_test(
     data=data, sequence_length=sequence_length,
     duplication_ratio=duplication_ratio, split_index=split_index)
 
@@ -61,7 +64,8 @@ y_pred = np.reshape(y_pred, (y_pred.size,))
 # Save results.
 print("Saving...")
 results_csv_path = os.path.join(output_dir, input_csv)
-df = pd.DataFrame(data={'y_true': y_true, 'y_test': y_test, 'y_pred': y_pred})
+df = pd.DataFrame(data={'timestamps': timestamps, 'y_true': y_true,
+                        'y_test': y_test, 'y_pred': y_pred})
 df.to_csv(results_csv_path, index=False)
 
 # Extract anomalies from predictions and plot results.

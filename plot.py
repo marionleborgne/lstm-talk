@@ -1,44 +1,57 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from anomaly import compute_scores
 
+# Figure styling
+sns.set_style('ticks')
+sns.despine()
+sns.set_context("talk", rc={'lines.linewidth': 2.0})
 
-def plot_anomalies(y_true, y_pred, errors, log_likelihoods, anomalies, outfile):
-    N = len(y_true)
 
-    plt.figure(figsize=(20, 7))
-
-    ax1 = plt.subplot(411)
-    ax1.set_title("Actual Signal")
-    ax1.plot(y_true, 'blue')
+def plot_anomalies(timestamps, y_true, y_test, y_pred, errors, log_likelihoods,
+                   anomalies, output_file):
+    N = len(timestamps)
     y_max = max(y_true) * 1.10
-    bar_width = 50
-    ax1.bar(range(N), y_max * anomalies['high'], bar_width, color='red',
-            alpha=0.5, align='center')
-    ax1.set_ylim(0, y_max)
+    bar_width = 100
 
-    ax2 = plt.subplot(412, sharex=ax1)
-    ax2.set_title("Predicted Signal")
-    ax2.plot(y_pred, 'green')
+    fig, ax = plt.subplots(figsize=(20, 10), nrows=5, sharex=True)
 
-    ax3 = plt.subplot(413, sharex=ax2)
-    ax3.set_title("Error")
-    ax3.plot(errors, 'orange')
+    # Update labels (1 day = 48 * 30m)
+    offset = 8  # 4 hours
+    indices = range(offset, N, 2 * 48)
+    # indices = range(offset + 3 * 48, N, 14 * 48)
+    labels = [timestamps[i].split(' ')[0] for i in indices]
+    plt.xticks(indices, labels, rotation=-45, ha='left')
 
-    ax4 = plt.subplot(414, sharex=ax3)
-    ax4.set_title("Anomaly Log Likelihood")
-    ax4.plot(log_likelihoods, 'red')
+    ax[0].set_title("Actual Signal")
+    ax[0].plot(y_true, 'blue')
+    ax[0].bar(range(N), y_max * anomalies['high'], bar_width, color='red',
+              alpha=0.5, align='center')
+    ax[0].set_ylim(0, y_max)
+
+    ax[1].set_title("Normalized Signal")
+    ax[1].plot(y_pred, 'purple')
+
+    ax[2].set_title("Predicted Signal")
+    ax[2].plot(y_pred, 'green')
+
+    ax[3].set_title("Prediction Error")
+    ax[3].plot(errors, 'red')
+
+    ax[4].set_title("Anomaly Log Likelihood")
+    ax[4].plot(log_likelihoods, 'black')
 
     # Plot anomalies
-    ax4.bar(range(N), anomalies['high'], bar_width, color='red', alpha=0.5,
-            align='center')
-    ax4.set_ylim(0, 1)
+    ax[4].bar(range(N), anomalies['high'], bar_width, color='red', alpha=0.5,
+              align='center')
+    ax[4].set_ylim(0, 1)
 
     plt.xlim(0, len(y_true))
     plt.tight_layout()
-    plt.savefig(outfile)
+    plt.savefig(output_file)
 
 
 def plot_history(output_file, history):
@@ -52,14 +65,14 @@ def plot_history(output_file, history):
     plt.savefig(output_file)
 
 
-def analyze_and_plot_results(results_csv_path, history_csv_path, show_plots=False,
-                             xmin=None, xmax=None):
-
+def analyze_and_plot_results(results_csv_path, history_csv_path,
+                             show_plots=False, xmin=None, xmax=None):
     # Load data.
     df = pd.read_csv(results_csv_path)
     y_true = df.y_true.values.astype("float64")
     y_test = df.y_test.values.astype("float64")
     y_pred = df.y_pred.values.astype("float64")
+    timestamps = df.timestamps.values
 
     # X-axis min and max values
     if xmin is None:
@@ -72,6 +85,7 @@ def analyze_and_plot_results(results_csv_path, history_csv_path, show_plots=Fals
 
     # Clip data
     y_true = y_true[xmin:xmax]
+    timestamps = timestamps[xmin:xmax]
     y_test = y_test[xmin:xmax]
     y_pred = y_pred[xmin:xmax]
     errors = errors[xmin:xmax]
@@ -80,24 +94,28 @@ def analyze_and_plot_results(results_csv_path, history_csv_path, show_plots=Fals
     anomalies['medium'] = anomalies['medium'][xmin:xmax]
 
     # Plot data, predictions, and anomaly scores.
-    outfile = results_csv_path[:-4] + '.png'
-    plot_anomalies(y_true, y_pred, errors, log_likelihoods, anomalies, outfile)
+    output_file = results_csv_path[:-4] + '.png'
+    plot_anomalies(timestamps, y_true, y_test, y_pred, errors, log_likelihoods,
+                   anomalies, output_file)
 
     # Plot training history.
     df = pd.read_csv(history_csv_path)
     metrics = df.columns.values
     history = {m: df[m].values.astype("float64")
                for m in metrics if m != 'epochs'}
-    outfile = history_csv_path[:-4] + '.png'
-    plot_history(outfile, history)
+    output_file = history_csv_path[:-4] + '.png'
+    plot_history(output_file, history)
 
     if show_plots:
         plt.show()
 
 
 if __name__ == '__main__':
+    xmin = 8200
+    # xmin = 0
+
     results_dir = 'results'
     results_csv_path = os.path.join(results_dir, 'nyc_taxi.csv')
     history_csv_path = os.path.join(results_dir, 'history.csv')
-    analyze_and_plot_results(results_csv_path, history_csv_path, show_plots=True,
-                             xmin=8200)
+    analyze_and_plot_results(results_csv_path, history_csv_path,
+                             show_plots=False, xmin=xmin)
